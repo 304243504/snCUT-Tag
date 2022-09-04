@@ -1,0 +1,41 @@
+
+cat turn_fragments_pass.tsv|awk '{sum+=$5} END {print "Average = ", sum/NR}' >> average_fragments_length.txt
+
+############  获取每个细胞fragments数（passed_filtered）:
+awk '{print $2"\t"$9"\t"$18}' origine_cell_metadata.tsv >> barcode_score.txt
+awk '{print $1"\t"$3/$2}' barcode_score.txt >> barcode_real_score.txt
+sed -i "1ibarcode\treal_FRiP" barcode_real_score.txt
+#sed -i  's/-1//g' origine_cell_metadata.tsv
+#sed -i '1d' origine_cell_metadata.tsv
+awk '{print $2"_"$9}' origine_cell_metadata.tsv > nFragments_per_cell3679.txt
+
+############  get_random_frip :
+mkdir random
+cd random
+
+cat ../nFragments_per_cell3679.txt |while read n;
+do
+id=${n%_*}
+Nall=${n#*_}
+bedtools random -g /public/home/spluan/oywz/GA_config_test/config10_test3/final_output/frip/MH63RS2_chromsize.txt -l $num -n ${Nall} > radom_${id}.bed
+bedtools intersect -a radom_${id}.bed -b /public/home/spluan/data_store/chip/20210106_bam/20M_peaks.narrowPeak  -wa -u | wc -l >> simulated_n_fragments_in_peaks.txt
+Nsimu=`bedtools intersect -a radom_${id}.bed -b /public/home/spluan/data_store/chip/20210106_bam/20M_peaks.narrowPeak  -wa -u | wc -l`
+echo ${id}    ${Nsimu}    ${Nall} >> for_FRiP.txt
+#awk '{print $1"-1""\t"$2/$3}' for_FRiP.txt > barcode_simulated_score.txt  现实数据用这个
+awk '{print $1"\t"$2/$3}' for_FRiP.txt > barcode_simulated_score.txt
+done
+############  给最终的文件添加上title：
+sed -i "1ibarcode\trandom_FRiP" barcode_simulated_score.txt
+
+############  准备文件用于R脚本分析：
+barcode_simulated <- read.table('barcode_simulated_score.txt', header=TRUE,sep="\t")
+barcode_real      <- read.table('barcode_real_score.txt', header=TRUE,sep="\t")
+frip <- merge(barcode_simulated,barcode_real,by="barcode") 
+write.table(frip, file=paste0(args$out_prefix,'merged_FRiP_data.tsv'), quote=FALSE, sep='\t', header=FALSE, row.names=FLASE)
+
+awk '{print "real""\t"$3*100}' merged_FRiP_data.tsv >> all_input_scCT.txt
+awk '{print "random""\t"$2*100}' merged_FRiP_data.tsv >> all_input_random.txt
+cat all_input_scCT.txt all_input_random.txt >> all_cell_frip_data_for_R.tsv
+sed -i "1igroup\tvalue" R_plot_data.tsv
+
+
