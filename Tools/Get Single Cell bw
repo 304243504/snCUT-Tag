@@ -1,10 +1,10 @@
 
 samtools view -h -o out.sam 10×out.bam
-head -n 20  out.sam > header.sam
 
 cat barcode_list.txt |while read barcode;
 do
-grep $barcode > sam/$barcode.sam
+head -n 20  out.sam > sam/$barcode.sam
+grep $barcode out.sam >> sam/$barcode.sam
 done
 
 
