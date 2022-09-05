@@ -1,3 +1,4 @@
+
 cat("*** Loading libraries")
 suppressMessages({
 library(argparse);
@@ -16,43 +17,36 @@ library(GenomicRanges);
 
 set.seed(1)
 
-
 ########### Arguments parser
 parser <- ArgumentParser()
-parser$add_argument("-s", "--sample", type="character", default='SingleCell', help="sample name [as in config file key]")
-parser$add_argument("-c", "--config", type="character", default='/public/home/spluan/oywz/params_finding/bin1000/config10/config10.yaml', help="maximum number of reads in cell")
-parser$add_argument("-o", "--out_prefix", type="character", default="/public/home/spluan/oywz/GA_config_test/config10_test3/", help="folder for the output in clustering_snakemake folder")
+parser$add_argument("-s", "--sample", type="character", default='snCUT&Tag', help="sample name [as in config file key]")
+#parser$add_argument("-c", "--config", type="character", default='', help="maximum number of reads in cell")
+parser$add_argument("-o", "--out_prefix", type="character", default="", help="folder for the output in clustering_snakemake folder")
 parser$add_argument("-w", "--window", type="integer", default=1000, help="width of the genome window (if -t bins)")
-args <- parser$parse_args()
-# args <- list()
-# args$sample     <- "H3K27me3_N1"
-# args$config     <- "scCut-Tag_2020/config/config.yaml"
-# args$out_prefix <- "results/H3K27me3_N1/cell_picking/5000/"
-# args$window     <- 5000
+#args <- parser$parse_args()
 print(args)
 config <- yaml::read_yaml(args$config)
 
 
 ########### Cell filter parameters
-cutoff_reads_min            = config$samples[[args$sample]]$clustering_params$min_reads_log10
-cutoff_reads_max            = config$samples[[args$sample]]$clustering_params$max_reads_log10
-cutoff_peak_percentage_low  = config$samples[[args$sample]]$clustering_params$min_peaks_ratio
-cutoff_peak_percentage_high = config$samples[[args$sample]]$clustering_params$max_peaks_ratio
+cutoff_reads_min            = 4000
+cutoff_reads_max            = 300000
+cutoff_peak_percentage_low  = 0.2
+cutoff_peak_percentage_high = 0.98
 ndim = 50
 window  = args$window
 assay = "peaksMB"
 
 
 ########### input files
-fragments <- '/public/home/spluan/scCUT_N_Tag/rice/oy/outs/out_copy/fragments.tsv.gz'
-all_barcodes_file  <- '/public/home/spluan/oywz/analysis/results/oy/barcode_statistics/all_barcodes.txt'
-peak_barcodes_file <- '/public/home/spluan/oywz/analysis/results/oy/barcode_statistics/peaks_barcodes_narrow.txt'
-metadata_file      <- '/public/home/spluan/oywz/params_finding/bin1000/config10/single_filter/run_final/cell_filter_final_run/metadata.csv'  *****10× pipeline产出的不是这个metadata文件
+fragments <- 'fragments.tsv.gz'
+all_barcodes_file  <- 'all_barcodes.txt'
+peak_barcodes_file <- 'peaks_barcodes.txt'
+metadata_file      <- 'metadata.csv'
 
 
 #### Create genome annotation
-#cat("*** Loading genome annotation \n")
-rice_gff <-import.gff(con = "/public/home/spluan/test/cut_tag/MH63RS2.LNNK00000000.v2_4.gtf")
+rice_gff <-import.gff(con = "MH63RS2.LNNK00000000.v2_4.gtf")
 seqlengths(rice_gff) <- c("Chr01" = 44512328,"Chr02"=36671280,"Chr03"=39351490,"Chr04"=36167251,"Chr05"=30881543,"Chr06"=31652805,"Chr07"=29891017,"Chr08"=29797537,"Chr09"=24332368,"Chr10"=25127214,"Chr11"=32883170,"Chr12"=26156356)
 rice_gff_chr <- renameSeqlevels(rice_gff, c(Chr01="chr1",Chr02="chr2",Chr03="chr3",Chr04="chr4",Chr05="chr5",Chr06="chr6",Chr07="chr7",Chr08="chr8",Chr09="chr9",Chr10="chr10",Chr11="chr11",Chr12="chr12"))
 genebody.coords<-rice_gff_chr[rice_gff_chr$type=="gene",]
@@ -63,7 +57,6 @@ genebodyandpromoter.coords.flat$name<- genebody.coords[nearest(genebodyandpromot
 
 
 ########## remould metadata file information
-#cat("*** Reading barcode statistics files \n")
 metadata = read.csv(metadata_file, header = 1)
 metadata = metadata[2:nrow(metadata),]
 metadata$logUMI = log10(metadata$passed_filters + 1)
@@ -72,24 +65,17 @@ metadata$peak_region_ratio = (metadata$peak_region_fragments+1) / (metadata$pass
 
 all_barcodes <- read.table(file=all_barcodes_file)
 peak_barcodes <- read.table(file=peak_barcodes_file)
-#barcode_simulated <- read.table('barcode_simulated_score.txt', header=TRUE,sep="\t")
-#barcode_real      <- read.table('barcode_real_score.txt', header=TRUE,sep="\t")
-#frip <- merge(barcode_simulated,barcode_real,by="barcode") 
 bcd <- merge(all_barcodes,peak_barcodes,by="V2")  
 colnames(bcd) <- c("barcode","all_unique_reads","peak_reads")
 bcd$peak_ratio_reads <- bcd$peak_reads/bcd$all_unique_reads
 bcd$sample <- args$sample
 
 metadata <- merge(metadata,bcd,by='barcode')
-#metadata <- merge(metadata,frip,by='barcode')
 metadata <- metadata[metadata$is__cell_barcode==1,]
-#write.csv(metadata, file=paste0(args$out_prefix,'origine_cell_metadata.csv'),row.names = FALSE,quote = FALSE)
 write.table(metadata, file=paste0(args$out_prefix,'origine_cell_metadata.tsv'),row.names = FALSE,quote = FALSE, sep='\t')
 
 
-
 ########## Cell filter
-#cat("*** Filtering cells \n")
 metadata$is__cell_barcode <- as.factor(metadata$is__cell_barcode)
 metadata[,"passed"] <- FALSE
 metadata[metadata$all_unique_reads > 10^cutoff_reads_min &
@@ -99,14 +85,13 @@ metadata[metadata$all_unique_reads > 10^cutoff_reads_min &
 metadata <- metadata[metadata$passed,]
 rownames(metadata) <- metadata$barcode
 write.table(metadata, file=paste0(args$out_prefix,'filtered_cell_metadata.tsv'),row.names = FALSE,quote = FALSE, sep='\t')
-cell_num <- nrow(metadata)
-writeLines(as.character(cell_num), paste0(args$out_prefix,'cell_num.txt'), sep = "\n", useBytes = TRUE)
+#cell_num <- nrow(metadata)
 
 
-fragments_gr      <- rtracklayer::import(fragments,format = "bed")
+fragments_gr     <- rtracklayer::import(fragments,format = "bed")
 fragments.pass   <- fragments_gr[fragments_gr$name %in% barcode_pass]
-turn_fragments.pass<-as.data.frame(fragments.pass)
-write.table(turn_fragments.pass, file=paste0(args$out_prefix,'turn_fragments_pass.tsv'), sep='\t', header=FALSE)
+fragments.pass   <- as.data.frame(fragments.pass)
+write.table(fragments.pass, file=paste0(args$out_prefix,'fragments_pass.tsv'), sep='\t', header=FALSE)
 
 
 gene.matrix     <- FeatureMatrix(fragments = fragments,
@@ -130,76 +115,49 @@ plot1 <- VariableFeaturePlot(seurat_object_gene)
 plot2 <- LabelPoints(plot = plot1, points = top15, repel = TRUE)
 CombinePlots(plots = list(plot1, plot2))
 
-ggsave(plot = plot1, filename=paste0(args$out_prefix,'most_variable_genes.png'),width = 10,height = 15,units = 'in')
-ggsave(plot = plot1, filename=paste0(args$out_prefix,'most_variable_genes_noted.png'),width = 10,height = 15,units = 'in')
-#ggsave(plot = p1+p2, filename=paste0(args$out_prefix,'cells_picked.png'),width = 20,height = 10,units = 'in')
 
-######数据缩放（降维前一个标准的额预处理步骤）
-#shift每个基因的表达，使细胞间的平均表达为0
-#缩放每个基因的表达，使细胞间的差异为1
+###### Data Scale
 all.genes <- rownames(seurat_object_gene)
 seurat_object_gene <- ScaleData(seurat_object_gene, features = all.genes)
 
-######PCA
+###### PCA
 seurat_object_gene <- RunPCA(seurat_object_gene, features = VariableFeatures(object = seurat_object_gene))
 
-######PCA之后gene的可视化
-pdf(paste0("./","visualization_after_pca_1.pdf"),width = 9,height = 6)
+###### Visualization
 VizDimLoadings(seurat_object_gene, dims = 1:2, reduction = "pca")
-dev.off()
-
-pdf(paste0("./","visualization_after_pca_2.pdf"),width = 9,height = 9)
 DimPlot(seurat_object_gene, reduction = "pca")
-dev.off()
-
-######PCA Power
-pdf(paste0("./","PCA_Power.pdf"),width = 30,height = 26)
 DimHeatmap(seurat_object_gene, dims = 1:12, cells = 500, balanced = TRUE, ncol = 2)
-dev.off()
 
-######dimention decision
+###### Dimention decision
 seurat_object_gene <- JackStraw(seurat_object_gene, num.replicate = 100)
 seurat_object_gene <- ScoreJackStraw(seurat_object_gene, dims = 1:20)
-
-pdf(paste0("./","dimention_decision.pdf"),width = 9,height = 9)
 JackStrawPlot(seurat_object_gene, dims = 1:15)
-dev.off()
-
-######碎石图
-pdf(paste0("./","suishitu.pdf"),width = 12,height = 9)
 ElbowPlot(seurat_object_gene)
-dev.off()
 
-######Clustering
-##分辨率参数设置在0.4-1.2之间，对于3千个左右的单细胞数据通常会得到比较好的结果。对于较大的数据集，最佳分辨率通常增加
+
+###### Cell clustering
 seurat_object_gene <- FindNeighbors(seurat_object_gene, dims = 2:20)
 seurat_object_gene <- FindClusters(seurat_object_gene, resolution = 0.6)
-#head(Idents(seurat_object_gene),5)
-#降维
 seurat_object_gene <- RunUMAP(seurat_object_gene, dims = 2:20)
 
-pdf(paste0("./","config10_filte_GA_cluster.pdf"),width = 12,height = 9)
 DimPlot(seurat_object_gene, reduction = "umap")
-dev.off()
-#saveRDS(seurat_object_gene, file = "./GA_barcode_after_clustering_by_GA.rds")
 
-######寻找差异基因
+
+###### Acquire DEX gene info
 seurat_object_gene.markers <- FindAllMarkers(seurat_object_gene, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
 top20_marker_gene <- seurat_object_gene.markers %>% dplyr::filter(p_val_adj < 0.1) %>% group_by(cluster) %>% top_n(n = 20, wt = avg_log2FC)
 write.csv(top20_marker_gene, file = paste0(args$out_prefix, "top_markers_by_GA.csv"), sep="\t", quote=F)
-#top2 <- seurat_object_gene.markers %>% dplyr::filter(p_val_adj < 0.05) %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
 
 
-######细胞基因热图  X5
-top5 <- seurat_object_gene.markers %>% dplyr::filter(p_val_adj < 0.05) %>% group_by(cluster) %>% top_n(n = 5, wt = avg_log2FC)
+###### Heatmap of top variable genes
 DoHeatmap(seurat_object_gene, features = top5$gene) + NoLegend() + theme(legend.position = "none", axis.text.y = element_text(size = 6))
 DotPlot(seurat_object_gene, features = unique(top2$gene)) + RotatedAxis()
 
 
-######export bw file per cluster
-fragments.path <- '/public/home/spluan/oywz/analysis/results/merged/H3K4me3/fragments.tsv.gz'
+###### Export bw file per cluster
+fragments.path <- 'fragments.tsv.gz'
 fragments <- rtracklayer::import(con = fragments.path,format = 'bed')
-chrom.sizes <- read.table("/public/home/spluan/oywz/analysis/out/chr.size",,sep="\t",stringsAsFactors = FALSE)
+chrom.sizes <- read.table("Chromosize.txt",,sep="\t",stringsAsFactors = FALSE)
 chrom.sizes <- chrom.sizes[1:12,]
 exportBW <- function(object,cluster,fragments){
   if(class(object) == "Seurat"){
@@ -229,11 +187,5 @@ exportBW <- function(object,cluster,fragments){
 lapply(levels(seurat_object_gene@active.ident),function(x){
   exportBW(seurat_object_gene,x,fragments)
 })
-
-
-
-
-
-
 
 
