@@ -17,6 +17,8 @@ library(GenomicRanges);
 
 set.seed(1)
 
+#Note that this pipeline use cellranger-atac count(v1.2) results as input
+
 ########### Arguments parser
 parser <- ArgumentParser()
 parser$add_argument("-s", "--sample", type="character", default='snCUT&Tag', help="sample name [as in config file key]")
