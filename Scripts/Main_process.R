@@ -108,7 +108,7 @@ seurat_object_gene <- CreateSeuratObject(counts = gene.matrix,
 
 seurat_object_gene <- NormalizeData(seurat_object_gene,normalization.method = 'LogNormalize',scale.factor=10000)
 
-######寻找并展示最高变gene
+###### Find and show high variable genes
 seurat_object_gene <- FindVariableFeatures(seurat_object_gene, selection.method = "vst", nfeatures = 1000)
 top15 <- head(VariableFeatures(seurat_object_gene),15)
 plot1 <- VariableFeaturePlot(seurat_object_gene)
