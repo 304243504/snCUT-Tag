@@ -12,7 +12,7 @@ The results obtained may be slightly different as different version softwares we
 
 
 For more information and experiment details, refer to: 
-Ouyang W, Luan S, Xiang X, Guo M, Zhang Y, Li G, Li X. Profiling plant histone modification at single-cell resolution using snCUT&Tag. Plant Biotechnol J. 2022 Mar;20(3):420-422. doi: 10.1111/pbi.13768.
+  Ouyang W, Luan S, Xiang X, Guo M, Zhang Y, Li G, Li X. Profiling plant histone modification at single-cell resolution using snCUT&Tag. Plant Biotechnol J. 2022 Mar;20(3):420-422. doi: 10.1111/pbi.13768.
     
     
     
