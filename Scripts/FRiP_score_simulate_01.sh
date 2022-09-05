@@ -18,9 +18,9 @@ cat ../nFragments_per_cell3679.txt |while read n;
 do
 id=${n%_*}
 Nall=${n#*_}
-bedtools random -g /public/home/spluan/oywz/GA_config_test/config10_test3/final_output/frip/MH63RS2_chromsize.txt -l $num -n ${Nall} > radom_${id}.bed
-bedtools intersect -a radom_${id}.bed -b /public/home/spluan/data_store/chip/20210106_bam/20M_peaks.narrowPeak  -wa -u | wc -l >> simulated_n_fragments_in_peaks.txt
-Nsimu=`bedtools intersect -a radom_${id}.bed -b /public/home/spluan/data_store/chip/20210106_bam/20M_peaks.narrowPeak  -wa -u | wc -l`
+bedtools random -g MH63RS2_chromsize.txt -l $num -n ${Nall} > radom_${id}.bed
+bedtools intersect -a radom_${id}.bed -b peaks.narrowPeak  -wa -u | wc -l >> simulated_n_fragments_in_peaks.txt
+Nsimu=`bedtools intersect -a radom_${id}.bed -b peaks.narrowPeak  -wa -u | wc -l`
 echo ${id}    ${Nsimu}    ${Nall} >> for_FRiP.txt
 awk '{print $1"\t"$2/$3}' for_FRiP.txt > barcode_simulated_score.txt
 done
