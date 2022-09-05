@@ -39,7 +39,7 @@ awk '{print "random""\t"$2*100}' merged_FRiP_data.tsv >> all_input_random.txt
 cat all_input_scCT.txt all_input_random.txt >> FRiP_data_file.tsv
 sed -i "1igroup\tvalue" FRiP_data_file.tsv
 
-Rscript FRiP_score_simulate.R
+Rscript FRiP_score_simulate_02.R
 
 
 
